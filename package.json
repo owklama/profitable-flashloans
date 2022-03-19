@@ -1,0 +1,25 @@
+{
+  "name": "profitable-flashloans",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DeanShaked/profitable-flashloans.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DeanShaked/profitable-flashloans/issues"
+  },
+  "homepage": "https://github.com/DeanShaked/profitable-flashloans#readme",
+  "dependencies": {
+    "@uniswap/sdk": "^3.0.3",
+    "dotenv": "^16.0.0",
+    "web3": "^1.7.1"
+  }
+}
