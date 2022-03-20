@@ -3,15 +3,35 @@ pragma experimental ABIEncoderV2;
 
 import "@studydefi/money-legos/dydx/contracts/DydxFlashloanBase.sol";
 import "@studydefi/money-legos/dydx/contracts/ICallee.sol";
+import { KyberNetworkProxy as IKyberNetworkProxy } from '@studydefi/money-legos/kyber/contracts/KyberNetworkProxy.sol';
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import './IUniswapV2Router02.sol';
+import './IWeth.sol';
 
 contract Flashloan is ICallee, DydxFlashloanBase {
     enum Direction { KyberToUniswap, UniswapToKyber } 
     struct ArbInfo {
         Direction direction;
         uint repayAmount;
+    }
+
+    IKyberNetworkProxy kyber;
+    IUniswapV2Router02 uniswap;
+    IWeth weth;
+    IERC20 dai;
+    address constant KYBER_ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    constructor(
+        address kyberAddress,
+        address uniswapAddress,
+        address wethAddress,
+        address daiAddress,
+    ) public {
+      kyber = IKyberNetworkProxy(kyberAddress);
+      uniswap = IUniswapV2Router02(uniswapAddress);
+      weth = IWeth(wethAddress);
+      dai = IERC20(daiAddress);
     }
 
     // This is the function that will be called postLoan
@@ -22,15 +42,40 @@ contract Flashloan is ICallee, DydxFlashloanBase {
         bytes memory data
     ) public {
         ArbInfo memory arbInfo = abi.decode(data, (ArbInfo));
-        // Enter arbitage logic here
+        uint256 balanceDai = dai.balanceOf(address(this));
+
+        // Note that you can ignore the line below
+        // if your dydx account (this contract in this case)
+        // has deposited at least ~2 Wei of assets into the account
+        // to balance out the collaterization ratio
+        require(
+            balanceDai >= arbInfo.repayAmount,
+            "Not enough funds to repay dydx loan!"
+        );
+
+        if(arbInfo.direction == Direction.KyberToUniswap) {
+
+            // Buy ETH on Kyber
+            dai.approve(address(kyber), balanceDai);
+            (uint expectedRate, ) = kyber.getExpectedRate(
+                dai,
+                IERC20(KYBER_ETH_ADDRESS),
+                balanceDai
+            );
+            kyber.swapTokenToEther(dai,balanceDai, expectedRate);
+
+            // Sell ETH on Uniswap
+            address[] memory path = new address [](2)
+            
+        }
     }
 
     function initiateFlashloan(
       address _solo, 
       address _token, 
-      uint256 _amount,
-      Direction _direction) 
-        external 
+      uint256 _amount, 
+      Direction _direction)
+        external
     {
         ISoloMargin solo = ISoloMargin(_solo);
 
@@ -59,4 +104,3 @@ contract Flashloan is ICallee, DydxFlashloanBase {
 
         solo.operate(accountInfos, operations);
     }
-}
