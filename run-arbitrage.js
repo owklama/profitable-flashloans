@@ -1,24 +1,37 @@
 require("dotenv").config();
 const Web3 = require("web3");
+// Utility interfaces for blockchain interactions
 const { ChainId, Token, TokenAmount, Pair } = require("@uniswap/sdk");
+
 const abis = require("./abis");
+
+// Renaming mainnet to address to make it general purpose.
 const { mainnet: addresses } = require("./addresses");
 const Flashloan = require("./contracts/Flashloan.sol");
 
+// Node provider to interact with the ethereum blockchain,
+// Using public node proivders is slow and hackable, other trading bots with a node connection will execute the traders faster,
+// and also can front-run you if they catch your arb opportunity of couse.
 const web3 = new Web3(
   new Web3.providers.WebsocketProvider(process.env.INFURA_URL)
 );
+
+// Renaming the address namepsace provided by web3 wallet connection to admin to make it more interfaceable.
 const { address: admin } = web3.eth.accounts.wallet.add(
   process.env.PRIVATE_KEY
 );
 
+// Adding kyber networks proxy contract to be able to interact with the the on-chain liquidity provider.
 const kyber = new web3.eth.Contract(
   abis.kyber.kyberNetworkProxy,
   addresses.kyber.kyberNetworkProxy
 );
 
+// Configuring ONE_WEI as a gas units to make sure the trade is still profiable.
 const ONE_WEI = web3.utils.toBN(web3.utils.toWei("1"));
 const AMOUNT_DAI_WEI = web3.utils.toBN(web3.utils.toWei("20000"));
+
+// Confifuring the direction of the swap as an obj
 const DIRECTION = {
   KYBER_TO_UNISWAP: 0,
   UNISWAP_TO_KYBER: 1,
@@ -31,7 +44,10 @@ const init = async () => {
     Flashloan.networks[networkId].address
   );
 
+  // ethPrice represent the current on-chain price of eth
   let ethPrice;
+
+  // Read the eth price from the kyber networks smart contract
   const updateEthPrice = async () => {
     const results = await kyber.methods
       .getExpectedRate(
@@ -40,11 +56,15 @@ const init = async () => {
         1
       )
       .call();
+
+    // Format the price of eth and dai
     ethPrice = web3.utils
       .toBN("1")
       .mul(web3.utils.toBN(results.expectedRate))
       .div(ONE_WEI);
   };
+
+  // Updating the pairs price every 15 secs.
   await updateEthPrice();
   setInterval(updateEthPrice, 15000);
 
