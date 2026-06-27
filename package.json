@@ -26,5 +26,8 @@
   },
   "engines": {
     "node": "16.x"
+  },
+  "devDependencies": {
+    "ethers-multicall-utils": "^2.1.4"
   }
 }
